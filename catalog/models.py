@@ -2,7 +2,6 @@ from django.db import models
 from django.urls import reverse # Used in get_absolute_url() to get URL for specified ID
 from django.db.models import UniqueConstraint # Constrains fields to unique values
 from django.db.models.functions import Lower # Returns lower cased value of field
-import uuid # Reqiured for unique book instance
 
 class Genre(models.Model):
   """ Model representing a book genre. """
@@ -29,6 +28,28 @@ class Genre(models.Model):
       ),
     ]
 
+class Language(models.Model):
+  """Model representing a Language (e.g. English, French, Japanese, etc.)"""
+  name = models.CharField(max_length=200,
+                          unique=True,
+                          help_text="Enter the book's natural language (e.g. English, French, Japanese etc.)")
+  
+  def get_absolute_url(self):
+    """Returns the url to access a particular language instance."""
+    return reverse('language-detail', args=[str(self.id)])
+  
+  def __str__(self):
+    return self.name
+  
+  class Meta:
+    constraints = [
+      UniqueConstraint(
+        Lower('name'),
+        name='language_name_case_insensitive_unique',
+        violation_error_message = "Language already exists (case insensitive match)"
+      ),
+    ]
+
 class Book(models.Model):
   """Model representing a book (but not a specific copy of a book)."""
   title = models.CharField(max_length=200)
@@ -47,6 +68,18 @@ class Book(models.Model):
   genre = models.ManyToManyField(
     Genre, help_text="Select a genre for this book")
   
+  language = models.ForeignKey(
+    'Language', on_delete=models.SET_NULL, null=True)
+  
+  class Meta:
+    ordering = ['title', 'author']
+
+  def display_genre(self):
+    """Creates a string for the Genre. This is required to display genre in Admin."""
+    return ', '.join([genre.name for genre in self.genre.all()[:3]])
+  
+  display_genre.short_description = 'Genre'
+
   def __str__(self):
     """String for representing the Model object."""
     return self.title
@@ -54,6 +87,15 @@ class Book(models.Model):
   def get_absolute_url(self):
     """Returns the URL to access a detail record for this book."""
     return reverse('book-detail', args=[str(self.id)])
+  
+  def __str__(self):
+    """String for representing the Model object."""
+    return self.title
+
+import uuid # Reqiured for unique book instance
+# from datetime import date
+
+# from django.conf import settings # Required to assign User as a borrower
 
 class BookInstance(models.Model):
   """Model representing a specific copy of a book (i.e. that can be borrowed from the library)."""
